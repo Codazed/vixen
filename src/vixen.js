@@ -5,6 +5,7 @@ const fs = require('fs-extra');
 const logger = require('loglevel');
 const moment = require('moment');
 const ora = require('ora');
+const path = require('path');
 const prefix = require('loglevel-plugin-prefix');
 
 const colors = {
@@ -69,11 +70,25 @@ class Vixen {
         this.config.owner = fetch.get('owner').value;
 
         this.bot = new Discord.Client();
+
+        // Register commands
         this.bot.commands = new Discord.Collection();
+        this.bot.commandGroups = {
+            moderation: 'Commands related to guild moderation',
+            music: 'Commands related to controlling the audio player'
+        };
         const cmdFiles = fs.readdirSync('./src/commands').filter(file => file.endsWith('.js'));
         cmdFiles.forEach(file => {
             const command = require(`./commands/${file}`);
             this.bot.commands.set(command.name, command);
+        });
+
+        Object.keys(this.bot.commandGroups).forEach(group => {
+            const groupCmds = fs.readdirSync(path.join('./src/commands', group)).filter(file => file.endsWith('.js'));
+            groupCmds.forEach(file => {
+                const command = require(`./commands/${group}/${file}`);
+                this.bot.commands.set(command.name, command);
+            });
         });
 
         this.bot.once('ready', async() => {
