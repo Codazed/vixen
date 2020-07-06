@@ -74,14 +74,14 @@ class AudioController {
         guildsMap.get(guildId).playQueue.push(audioJSON);
     }
 
-    checkQueue(guildId, queue = guildsMap.get(guildId).playQueue.slice()) {
-        queue.forEach(async data => {
+    async checkQueue(guildId, queue = guildsMap.get(guildId).playQueue.slice()) {
+        for (const data of queue) {
             if (!fs.existsSync(`./cache/${data.id}.ogg`)) {
                 await this.download(data).catch(() => {
                     this.vixen.log(`Error downloading ${data.title}: Video is longer than the max duration of ${config.maxDuration} seconds. Skipping.`, 'err');
                 });
             }
-        });
+        }
     }
     download(data) {
         return new Promise((resolve, reject) => {
@@ -185,6 +185,23 @@ class AudioController {
                     throw 'No videos found!';
                 }
                 infoSpinner.stop();
+            });
+        });
+    }
+
+    fetchPlaylist(url, loadMsg, vixen) {
+        const getInfo = this.getVideoInfo;
+        return new Promise(resolve => {
+            youtubedl.exec(url, ['--default-search', 'ytsearch', '--dump-json', '--skip-download', '--flat-playlist'], {}, async function (err, output) {
+                if (err) throw err;
+                let rawJSON = JSON.parse(`{"videos": [${output.toString()}]}`);
+                let playlistJSON = [];
+                for (const video of rawJSON.videos) {
+                    loadMsg.edit(`${vixen.getEmoji(loadMsg.guild, 'loading')} Retrieving information for video ${playlistJSON.length + 1}/${rawJSON.videos.length}: \`${video.title}\`. This will take a moment...`);
+                    const info = await getInfo('https://youtube.com/watch?v=' + video.id);
+                    playlistJSON.push(info);
+                }
+                resolve(playlistJSON);
             });
         });
     }
