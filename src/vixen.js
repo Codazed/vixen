@@ -74,6 +74,7 @@ class Vixen {
         // Register commands
         this.bot.commands = new Discord.Collection();
         this.bot.commandGroups = {
+            fun: 'Fun commands or just-for-the-heck-of-it commands',
             moderation: 'Commands related to guild moderation',
             music: 'Commands related to controlling the audio player'
         };

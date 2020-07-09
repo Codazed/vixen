@@ -25,6 +25,7 @@
     "music-metadata": "^6.4.0",
     "ora": "^4.0.4",
     "random-item": "^3.0.0",
+    "smite-builder": "^1.1.0",
     "table": "^5.4.6",
     "utf-8-validate": "^5.0.2",
     "youtube-dl": "^3.0.2",
