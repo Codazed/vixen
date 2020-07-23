@@ -48,7 +48,11 @@ module.exports = {
                     const query = vixen.db.prepare(`INSERT INTO muted (id, name, guild, guildName, muteTimeStart, muteTimeEnd) VALUES (?, ?, ?, ?, ?, ?)`);
                     query.run(user.id, user.user.username, msg.guild.id, msg.guild.name, currentTime.unix(), muteEndTime.unix());
                     await msg.channel.send(`Muted user \`${user.user.tag} (${nick}ID: ${user.id})\` until ${moment.unix(muteEndTime.unix()).calendar()}.`);
-                    await user.user.send(`Whoop! Someone didn't follow the rules on ${user.guild.name}! You have been muted on it until ${moment.unix(muteEndTime.unix()).format('DD/MM/YYYY HH:mm [UTC]')}`);
+                    try {
+                        await user.user.send(`Whoop! Someone didn't follow the rules on ${user.guild.name}! You have been muted on it until ${moment.unix(muteEndTime.unix()).format('DD/MM/YYYY HH:mm [UTC]')}`);
+                    } catch {
+                        vixen.log('Unable to send DM to ' + user.user.tag, 'WARN');
+                    }
                     await user.roles.add(muteRole);
                     await user.voice.kick('User has been muted.');
                 }
