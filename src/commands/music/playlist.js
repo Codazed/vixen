@@ -1,5 +1,6 @@
 const chalk = require('chalk');
 const fs = require('fs-extra');
+const got = require('got');
 const path = require('path');
 const youtubedl = require('youtube-dl');
 const ytRegex = require('youtube-regex');
@@ -98,6 +99,24 @@ module.exports = {
             loadMsg.delete();
             msg.channel.send(`Playlist \`${url}\` successfully imported to playlist with the name \`${name}\``);
         }
+
+        // Import playlist JSON from Discord
+        else if (args[0] === 'importjson') {
+            if (msg.attachments.size <= 0) return;
+            const attachment = msg.attachments.first();
+            if (attachment.name.endsWith('.json')) {
+                const name = attachment.name.replace('.json', '');
+                if (exists(msg.guild.id, name)) {
+                    await msg.channel.send(`A playlist with the name \`${name}\` already exists!`);
+                }
+                const response = await got(attachment.url);
+                const listJSON = JSON.parse(response.body);
+
+                // Future parsing of list JSON to make sure it isn't malformed
+                fs.writeFileSync(path.join(datadir, 'playlists', name), JSON.stringify(listJSON, '', ' '));
+            }
+        }
+
         // Export playlist JSON to Discord
         else if (args[0] === 'export') {
             const name = args[1];
