@@ -210,7 +210,7 @@ async function queuePlaylist(msg, playlist, shuffle, controller) {
             newData.requester = msg.member;
             controller.queue(msg.guild.id, newData);
         });
-        controller.checkQueue(msg.guild.id);
+        controller.checkQueue(msg);
     }
     if (fs.existsSync(path.join('./cache', first.id + '.ogg'))) {
         controller.play(newData.requester.guild.id, newData);

@@ -74,14 +74,19 @@ class AudioController {
         guildsMap.get(guildId).playQueue.push(audioJSON);
     }
 
-    async checkQueue(guildId, queue = guildsMap.get(guildId).playQueue.slice()) {
+    async checkQueue(guildMsg, queue = guildsMap.get(guildMsg.guild.id).playQueue.slice()) {
+        const message = await guildMsg.channel.send('Downloading missing tracks... 0/' + queue.length);
+        let position = 0;
         for (const data of queue) {
+            position++;
             if (!fs.existsSync(`./cache/${data.id}.ogg`)) {
+                message.edit(`Downloading missing tracks... ${position}/${queue.length}`);
                 await this.download(data).catch(() => {
                     this.vixen.log(`Error downloading ${data.title}: Video is longer than the max duration of ${config.maxDuration} seconds. Skipping.`, 'err');
                 });
             }
         }
+        message.delete();
     }
     download(data) {
         return new Promise((resolve, reject) => {
