@@ -133,7 +133,7 @@ module.exports = {
         // List all playlists in a guild
         else if (args[0] === 'list') {
             const playlists = [];
-            fs.readdirSync(datadir).forEach(file => {
+            fs.readdirSync(path.join(datadir, 'playlists')).forEach(file => {
                 playlists.push(file);
             });
             const playlistsData = [];
@@ -141,6 +141,12 @@ module.exports = {
                 const name = list.replace('.json', '');
                 playlistsData.push(getPlaylist(msg.guild.id, name));
             });
+            if (playlistsData.length <= 0) return msg.channel.send('There are no playlists on this server.');
+            let messageString = 'Here is a list of all the playlists available on this server:';
+            playlistsData.forEach(playlist => {
+                messageString += `\n- ${playlist.name} : ${playlist.size} tracks`;
+            });
+            msg.channel.send(messageString);
         }
     }
 };
