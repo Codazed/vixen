@@ -1,6 +1,7 @@
 module.exports = {
     name: 'unmute',
     description: 'Unmute a muted user',
+    modOnly: true,
     async execute(msg, args, vixen) {
         if (args[0]) {
             const user = msg.guild.member(args[0].replace(/[^A-Za-z0-9]/g, ''));

@@ -136,6 +136,10 @@ class Vixen {
             const command = args.shift().toLowerCase();
 
             if (!this.bot.commands.has(command)) return;
+            if (this.bot.commands.get(command).modOnly && !isUserModerator(msg.member)) return msg.reply('You need to be a moderator to use that command.');
+            if (this.bot.commands.get(command).adminOnly && !isUserAdmin(msg.member)) return msg.reply('You need to have the \'Administrator\' permission to use that command.');
+            if (this.bot.commands.get(command).ownerOnly && !isUserOwner(msg.member)) return msg.reply('Only the server owner may use that command.');
+            if (this.bot.commands.get(command).masterOnly && !isUserMaster(msg.author.id, this.config.owner)) return msg.reply('Only the bot owner may use that command.');
             try {
                 this.bot.commands.get(command).execute(msg, args, this);
             } catch (error) {
@@ -173,6 +177,22 @@ class Vixen {
     exit() {
         process.exit(0);
     }
+}
+
+function isUserModerator(user) {
+    return user.hasPermission('KICK_MEMBERS') || user.hasPermission('BAN_MEMBERS') || isUserOwner(user);
+}
+
+function isUserAdmin(user) {
+    return user.hasPermission('ADMINISTRATOR') || isUserOwner(user);
+}
+
+function isUserOwner(user) {
+    return user.guild.owner === user;
+}
+
+function isUserMaster(userId, vixenOwner) {
+    return userId === vixenOwner;
 }
 
 module.exports = Vixen;

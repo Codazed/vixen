@@ -5,6 +5,7 @@ const timeTypes = ['second', 'minute', 'hour', 'day', 'week', 'month', 'year', '
 module.exports = {
     name: 'mute',
     description: 'Mute a user',
+    modOnly: true,
     async execute(msg, args, vixen) {
         const query = vixen.db.prepare(`SELECT * FROM '${msg.guild.id}' WHERE id=?`).get('muteRole');
         let muteRole;

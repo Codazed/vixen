@@ -4,6 +4,7 @@ const {table} = require('table');
 module.exports = {
     name: 'muted',
     description: 'Shows a table of the muted users in the current guild',
+    modOnly: true,
     async execute(msg, args, vixen) {
         const muted = vixen.db.prepare(`SELECT * FROM muted WHERE guild=?`).all(msg.guild.id);
         let messageString;
