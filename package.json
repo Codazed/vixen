@@ -1,0 +1,6 @@
+{
+	"scripts": {
+		"setup": "docker run --rm -it --network vixen_backend -v $(pwd)/setup:/setup node:erbium node /setup/setup.js"
+	},
+	"license": "GPL-3.0"
+}

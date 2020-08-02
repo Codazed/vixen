@@ -14,7 +14,8 @@ module.exports = {
             const attachment = msg.attachments.first();
             let regex = /(.mp3|.wav|.ogg|.flac)$/g;
             if (regex.test(attachment.name)) {
-                const loadMsg = await msg.channel.send(`${vixen.getEmoji(msg.guild, 'loading')} Downloading uploaded audio...`);
+                const loadingEmoji = await vixen.getEmoji(msg.guild, 'loading');
+                const loadMsg = await msg.channel.send(`${loadingEmoji} Downloading uploaded audio...`);
                 const downloadSpinner = ora(`Downloading '${attachment.url}'...`).start();
                 await download(attachment.url, './cache');
                 const metadata = await musicMeta.parseFile(`./cache/${attachment.name}`);
@@ -39,13 +40,14 @@ module.exports = {
             }
         } else {
             const query = args.toString().replace(/,/g, ' ');
-            const loadMsg = await msg.channel.send(`${vixen.getEmoji(msg.guild, 'loading')} Fetching info for query \`${query}\``);
+            const loadingEmoji = await vixen.getEmoji(msg.guild, 'loading');
+            const loadMsg = await msg.channel.send(`${loadingEmoji} Fetching info for query \`${query}\``);
             controller.getVideoInfo(query).then(async data => {
                 const newData = data;
                 newData.vc = msg.member.voice.channel;
                 newData.channel = msg.channel;
                 newData.requester = msg.member;
-                loadMsg.edit(`${vixen.getEmoji(msg.guild, 'loading')} Downloading '${newData.title}'`);
+                loadMsg.edit(`${loadingEmoji} Downloading '${newData.title}'`);
                 if (fs.existsSync(`./cache/${newData.id}.ogg`)) {
                     loadMsg.delete();
                     controller.play(msg.guild.id, newData);

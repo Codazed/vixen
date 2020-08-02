@@ -1,0 +1,31 @@
+version: '3'
+services:
+  db:
+      image: mongo:4.2.8-bionic
+      volumes: 
+        - ./bot/data/mongo:/data/db
+      networks:
+        - backend
+        
+  bot:
+    image: node:erbium
+    volumes:
+      - ./bot:/vixen
+    networks:
+      - frontend
+      - backend
+    command: "rm -rf node_modules && yarn install && node /vixen/index.js"
+    depends_on: [db]
+
+  webui:
+    image: nginx:latest
+    ports:
+      - 9090:80
+    volumes:
+      - ./webui/dist:/var/www/html
+    networks:
+      - frontend
+
+networks:
+  frontend:
+  backend:

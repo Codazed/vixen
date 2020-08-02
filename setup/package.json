@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "inquirer": "^7.3.3",
+    "mongodb": "^3.6.0"
+  }
+}

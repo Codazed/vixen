@@ -1,4 +1,5 @@
 const Discord = require('discord.js');
+const ffmpeg = require('ffmpeg-static');
 const formatDuration = require('format-duration');
 const fs = require('fs-extra');
 const ora = require('ora');
@@ -34,10 +35,17 @@ class AudioController {
         }
     }
 
-    getSettings(guildId) {
-        const query = this.vixen.db.prepare(`SELECT * FROM '${guildId}' WHERE id=?`);
+    async getSettings(guildId) {
+        // const query = this.vixen.db.prepare(`SELECT * FROM '${guildId}' WHERE id=?`);
+        const query = await this.vixen.db.collection('guilds').findOne({id: guildId});
+        let guildAudioSettings;
+        console.log(query);
+        if (query.audio) {
+            guildAudioSettings = new Map(Object.entries(query.audio));
+        }
+        guildAudioSettings = new Map();
         let settings = {};
-        settings.volume = query.get('volume') ? query.get('volume').value : config.defaultVolume;
+        settings.volume = guildAudioSettings.get('volume') ? guildAudioSettings.get('volume') : config.defaultVolume;
         return settings;
     }
 
@@ -94,7 +102,7 @@ class AudioController {
                 reject();
             } else {
                 const downloadSpinner = ora(`Downloading '${data.title}'`).start();
-                youtubedl.exec(data.url, ['--format', 'bestaudio', '-x', '--audio-format', 'vorbis', '--audio-quality', '64K', '-o', './cache/%(id)s.unprocessed', '--rm-cache-dir'], {}, function (err) {
+                youtubedl.exec(data.url, ['--format', 'bestaudio', '-x', '--audio-format', 'vorbis', '--audio-quality', '64K', '-o', require('path').join(this.vixen.rootDir, 'cache/%(id)s.unprocessed'), '--rm-cache-dir', '--ffmpeg-location', ffmpeg], {}, function (err) {
                     if (err) throw err;
                     downloadSpinner.stop();
                     resolve();
@@ -114,10 +122,10 @@ class AudioController {
             sendQueueEmbed(audioJSON);
         } else {
             if (audioJSON.vc) {
-                const options = this.getSettings(guildId);
+                const options = await this.getSettings(guildId);
                 const connection = await audioJSON.vc.join();
                 connection.voice.setSelfDeaf(true);
-                guildData.audioPlayer = audioJSON.source === 'File' ? connection.play(`./cache/${audioJSON.filename}`, options) : connection.play(`./cache/${audioJSON.id}.ogg`, options);
+                guildData.audioPlayer = audioJSON.source === 'File' ? connection.play(require('path').join(this.vixen.rootDir, 'cache', audioJSON.filename), options) : connection.play(require('path').join(this.vixen.rootDir, 'cache', audioJSON.id + '.ogg'), options);
                 guildData.nowPlaying = audioJSON;
                 guildData.startTime = Date.now();
                 sendNPEmbed(audioJSON);
