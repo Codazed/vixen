@@ -13,5 +13,6 @@ async function start() {
     const Vixen = require('./src/vixen');
     const WebUI = require('./src/webui');
     //return new WebUI(new Vixen(client.db('vixen')));
-    return new Vixen(client.db('vixen'), __dirname);
+    // return new Vixen(client.db('vixen'), __dirname);
+    return new WebUI(new Vixen(client.db('vixen'), __dirname));
 }

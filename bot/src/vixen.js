@@ -34,15 +34,12 @@ class Vixen {
         };
         this.start();
     }
-
-    /**
-     * 
-     * @param {Discord.Guild} guild 
-     * @param {String} emojiName 
-     */
+    
     async getEmoji(guild, emojiName) {
         const guilds = this.db.collection('guilds');
-        const guildData = await guilds.findOne({id: guild.id});
+        const guildData = await guilds.findOne({
+            id: guild.id
+        });
         const guildEmojis = new Map(Object.entries(guildData.emojis));
         return guild.emojis.cache.get(guildEmojis.get(emojiName));
     }
@@ -74,13 +71,12 @@ class Vixen {
         const spinner = ora('Starting bot').start();
 
         const vixenData = this.db.collection('botvars');
-        this.config.token = (await vixenData.findOne({name: 'token'}, )).value;
-        this.config.owner = (await vixenData.findOne({name: 'owner'})).value;
-
-        // const fetch = this.db.prepare('SELECT * FROM vixen WHERE id=?');
-        // this.config.token = fetch.get('disc_token').value;
-        // this.config.prefix = fetch.get('prefix').value;
-        // this.config.owner = fetch.get('owner').value;
+        this.config.token = (await vixenData.findOne({
+            name: 'token'
+        }, )).value;
+        this.config.owner = (await vixenData.findOne({
+            name: 'owner'
+        })).value;
 
         this.bot = new Discord.Client();
 
@@ -105,21 +101,26 @@ class Vixen {
             });
         });
 
-        this.bot.once('ready', async() => {
+        this.bot.once('ready', async () => {
             this.audioController = new AudioController(this);
             spinner.stop();
             this.log('Logged in', 'info');
             this.bot.guilds.cache.forEach(async (guild) => {
                 fs.ensureDirSync(`./data/${guild.id}`);
                 const guilds = this.db.collection('guilds');
-                guilds.updateOne({id: guild.id}, {$set: {id: guild.id, name: guild.name}}, {upsert: true});
-                // this.db.prepare(`CREATE TABLE IF NOT EXISTS '${guild.id}' (id text, value text)`).run();
-                // this.db.prepare('CREATE TABLE IF NOT EXISTS muted (id text, name text, guild text, guildName text, muteTimeStart text, muteTimeEnd text)').run();
-                // const info = this.db.prepare('SELECT * FROM guilds WHERE uid=?').get(guild.id);
-                // if (!info) this.db.prepare('INSERT INTO guilds (uid, name) VALUES (?, ?)').run(guild.id, guild.name);
-
-                // const emoji = this.db.prepare(`SELECT * FROM '${guild.id}' WHERE id=?`).get('loadingEmoji');
-                const emojis = new Map(Object.entries((await guilds.findOne({id: guild.id})).emojis));
+                guilds.updateOne({
+                    id: guild.id
+                }, {
+                    $set: {
+                        id: guild.id,
+                        name: guild.name
+                    }
+                }, {
+                    upsert: true
+                });
+                const emojis = new Map(Object.entries((await guilds.findOne({
+                    id: guild.id
+                })).emojis));
                 let emoji = undefined;
                 if (emojis) {
                     emoji = emojis.get('loading');
@@ -127,11 +128,18 @@ class Vixen {
                 if (!emoji) {
                     this.log(`Loading emoji is incorrect or does not exist on guild ${guild.id}. Creating it...`, 'warn');
                     let newEmoji = await guild.emojis.create(path.join(this.rootDir, 'assets/loading.gif'), 'vixenload');
-                    // this.db.prepare(`INSERT INTO '${guild.id}' (id, value) VALUES ('loadingEmoji', ?)`).run(newEmoji.id);
-                    const existingEmojiMap = (await guilds.findOne({id: guild.id})).emojis;
+                    const existingEmojiMap = (await guilds.findOne({
+                        id: guild.id
+                    })).emojis;
                     const emojiMap = existingEmojiMap ? existingEmojiMap : new Map();
                     emojiMap.set('loading', newEmoji.id);
-                    await guilds.updateOne({id: guild.id}, {$set: {emojis: emojiMap}});
+                    await guilds.updateOne({
+                        id: guild.id
+                    }, {
+                        $set: {
+                            emojis: emojiMap
+                        }
+                    });
                 }
             });
         });
@@ -139,8 +147,9 @@ class Vixen {
         this.bot.on('channelCreate', async channel => {
             if (channel.type === 'dm') return;
             const collection = this.db.collection('guilds');
-            // const query = this.db.prepare(`SELECT * FROM '${channel.guild.id}' WHERE id=?`).get('muteRole');
-            const query = await collection.findOne({id: channel.guild.id}).roles.get('muted');
+            const query = await collection.findOne({
+                id: channel.guild.id
+            }).roles.get('muted');
             if (query) {
                 const muteRole = query;
                 channel.updateOverwrite(muteRole, {
@@ -175,31 +184,39 @@ class Vixen {
             }
         });
 
-        this.bot.setInterval(() => {
-            // const muted = this.db.prepare(`SELECT * FROM muted`).all();
-            const muted = this.db.collection('guilds').find({muted: []}).toArray();
-            if (typeof(muted) === Array) {
-                muted.forEach(guildData => {
-                    guildData.muted.forEach(async (person, index) => {
-                        if (moment.unix(person.muteTimeEnd).isBefore(moment())) {
-                            const guild = this.bot.guilds.resolve(guildData.id);
-                            // const muteRole = this.db.prepare(`SELECT * FROM '${guild.id}' WHERE id=?`).get('muteRole').value;
-                            const muteRole = (await this.db.collection('guilds').findOne({id: guild.id})).roles.get('muted');
-                            guild.member(person.id).roles.remove(muteRole, 'User mute time expired.');
-                            guild.member(person.id).user.send(`You are no longer muted on ${guild.name}. Remember to follow the rules!`);
-                            // this.db.prepare('DELETE FROM muted WHERE id=? AND guild=?').run(person.id, guild.id);
-                            const newMuted = guildData.muted;
-                            newMuted.splice(index, 1);
-                            await this.db.collection('guilds').updateOne({id: guild.id}, {$set: {muted: newMuted}});
-                        }
-                    });
-                });
-            }
+        this.bot.setInterval(async () => {
+            const guilds = await this.db.collection('guilds').find({});
+            guilds.forEach(server => {
+                if (server.mutedUsers) {
+                    const muted = new Map(Object.entries(server.mutedUsers));
+                    if (muted.size > 0) {
+                        this.log(`${server.id} contains ${muted.size} muted users, checking for expired mutes`, 'debug');
+                        muted.forEach(async (person, id) => {
+                            if (moment.unix(person.endTime).isBefore(moment())) {
+                                this.log(`${id}'s mute on ${server.id} has expired. Unmuting.`);
+                                const guild = this.bot.guilds.resolve(server.id);
+                                const muteRole = (await this.db.collection('guilds').findOne({
+                                    id: guild.id
+                                })).roles.muted;
+                                guild.member(id).roles.remove(muteRole, 'User mute time expired.');
+                                guild.member(id).user.send(`You are no longer muted on ${guild.name}. Remember to follow the rules!`);
+                                const newMuted = new Map(Object.entries(server.mutedUsers));
+                                newMuted.delete(id);
+                                await this.db.collection('guilds').updateOne({id: guild.id}, {
+                                    $set: {
+                                        mutedUsers: newMuted
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+            });
         }, 5000);
 
         // Graceful exit
         const death = require('death');
-        death(async() => {
+        death(async () => {
             const destroySpinner = ora('Shutting down gracefully...').start();
             await this.bot.destroy();
             await this.later(1500);

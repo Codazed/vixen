@@ -2,20 +2,25 @@ version: '3'
 services:
   db:
       image: mongo:4.2.8-bionic
+      ports:
+        - 27017:27017
       volumes: 
         - ./bot/data/mongo:/data/db
       networks:
         - backend
-        
+
   bot:
     image: node:erbium
+    ports:
+      - 3000:3000
     volumes:
       - ./bot:/vixen
     networks:
       - frontend
       - backend
-    command: "rm -rf node_modules && yarn install && node /vixen/index.js"
+    command: bash -c "cd /vixen && rm -rf node_modules && yarn install && node /vixen/index.js"
     depends_on: [db]
+    tty: true
 
   webui:
     image: nginx:latest

@@ -6,7 +6,9 @@ module.exports = {
     description: 'Shows a table of the muted users in the current guild',
     modOnly: true,
     async execute(msg, args, vixen) {
-        const muted = vixen.db.prepare(`SELECT * FROM muted WHERE guild=?`).all(msg.guild.id);
+        const collection = vixen.db.collection('guilds');
+        const guildData = await collection.findOne({id: msg.guild.id});
+        const muted = new Map(Object.entries(guildData.mutedUsers));
         let messageString;
         let data = [['Discord Tag', 'ID', 'Muted On', 'Muted For', 'Muted Until']];
         let tableCfg = {
@@ -52,22 +54,18 @@ module.exports = {
             }
         };
         let page = 1;
-        if (muted.length > 0) {
-            muted.forEach(person => {
-                let member = msg.guild.member(person.id);
-                data.push([member.user.tag, person.id, moment.unix(person.muteTimeStart).utc().format('DD/MM/YYYY HH:mm [UTC]'), moment.duration(moment.unix(person.muteTimeEnd).diff(moment.unix(person.muteTimeStart))).humanize(), moment.unix(person.muteTimeEnd).utc().format('DD/MM/YYYY HH:mm [UTC]')]);
-                if (`Muted users page ${page}\`\`\`${table(data, tableCfg)}\`\`\``.length >= 2000) {
-                    let overflow = data.pop();
-                    msg.channel.send(`Muted users page ${page}\`\`\`${table(data, tableCfg)}\`\`\``);
-                    page++;
-                    data = [['Discord Tag', 'ID', 'Muted On', 'Muted For', 'Muted Until'], overflow];
-                }
-            });
-            messageString = table(data, tableCfg);
-            await msg.channel.send(`Muted users page ${page}\`\`\`${messageString}\`\`\``);
-        } else {
-            await msg.channel.send('There are no muted users on this server.');
-        }
-
+        if (muted.size <= 0) return await msg.channel.send('There are no muted users on this server.');
+        muted.forEach((person, id) => {
+            let member = msg.guild.member(id);
+            data.push([member.user.tag, id, moment.unix(person.startTime).utc().format('DD/MM/YYYY HH:mm [UTC]'), moment.duration(moment.unix(person.endTime).diff(moment.unix(person.startTime))).humanize(), moment.unix(person.endTime).utc().format('DD/MM/YYYY HH:mm [UTC]')]);
+            if (`Muted users page ${page}\`\`\`${table(data, tableCfg)}\`\`\``.length >= 2000) {
+                let overflow = data.pop();
+                msg.channel.send(`Muted users page ${page}\`\`\`${table(data, tableCfg)}\`\`\``);
+                page++;
+                data = [['Discord Tag', 'ID', 'Muted On', 'Muted For', 'Muted Until'], overflow];
+            }
+        });
+        messageString = table(data, tableCfg);
+        await msg.channel.send(`Muted users page ${page}\`\`\`${messageString}\`\`\``);
     }
 };

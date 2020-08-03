@@ -36,7 +36,6 @@ class AudioController {
     }
 
     async getSettings(guildId) {
-        // const query = this.vixen.db.prepare(`SELECT * FROM '${guildId}' WHERE id=?`);
         const query = await this.vixen.db.collection('guilds').findOne({id: guildId});
         let guildAudioSettings;
         console.log(query);
@@ -68,14 +67,10 @@ class AudioController {
         return guildsMap.get(guildId).playQueue;
     }
 
-    setVolume(guildId, level) {
+    async setVolume(guildId, level) {
         const guildData = guildsMap.get(guildId);
         guildData.audioPlayer.setVolume(level);
-        if (this.vixen.db.prepare(`SELECT * FROM '${guildId}' WHERE id=?`).get('volume')) {
-            this.vixen.db.prepare(`UPDATE '${guildId}' SET value=? WHERE id=?`).run(level, 'volume');
-        } else {
-            this.vixen.db.prepare(`INSERT INTO '${guildId}' (id, value) VALUES (?, ?)`).run('volume', level);
-        }
+        this.vixen.db.collection('guilds').updateOne({id: guildId}, {$set: {'audio.volume': level}}, {upsert: true});
     }
 
     queue(guildId, audioJSON) {
