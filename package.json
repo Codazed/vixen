@@ -1,6 +1,6 @@
 {
 	"scripts": {
-		"setup": "docker run --rm -it --network vixen_backend -v $(pwd)/setup:/setup node:erbium node /setup/setup.js"
+		"setup": "docker run -d --rm --name=vixen_db_temp --network=vixen_backend -v $(pwd)/.docker/db:/data/db mongo:4.2.8-bionic && docker run --rm -it --network=vixen_backend -v $(pwd)/setup:/setup node:erbium node /setup/setup.js && docker stop vixen_db_temp"
 	},
 	"license": "GPL-3.0"
 }

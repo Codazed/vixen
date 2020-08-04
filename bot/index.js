@@ -11,8 +11,7 @@ start();
 async function start() {
     await client.connect();
     const Vixen = require('./src/vixen');
-    const WebUI = require('./src/webui');
     //return new WebUI(new Vixen(client.db('vixen')));
     // return new Vixen(client.db('vixen'), __dirname);
-    return new WebUI(new Vixen(client.db('vixen'), __dirname));
+    new Vixen(client, __dirname);
 }

@@ -16,6 +16,10 @@ class WebUI {
         this.run();
     }
 
+    async stop() {
+        await this.main.close();
+    }
+
     async run() {
         passport.serializeUser(function(user, done) {
             done(null, user);
@@ -76,7 +80,7 @@ class WebUI {
             });
         });
 
-        server.listen(3000, (err) => {
+        this.main = server.listen(3000, (err) => {
             if (err) return this.vixen.log(err, 'err');
             this.vixen.log('WebUI is listening on http://localhost:3000');
         });

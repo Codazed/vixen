@@ -1,7 +1,7 @@
 const inquirer = require('inquirer');
 const MongoDB = require('mongodb');
 
-const client = new MongoDB.MongoClient('mongodb://db', {useUnifiedTopology: true});
+const client = new MongoDB.MongoClient('mongodb://vixen_db_temp', {useUnifiedTopology: true});
 
 async function connect() {
     await client.connect();

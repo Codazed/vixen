@@ -24,8 +24,9 @@ prefix.apply(logger, {
 });
 
 class Vixen {
-    constructor(db, root) {
-        this.db = db;
+    constructor(mongo, root) {
+        this.db = mongo.db('vixen');
+        this.mongoClient = mongo;
         this.rootDir = root;
         this.config = {
             token: '',
@@ -68,16 +69,17 @@ class Vixen {
     }
 
     async start() {
-        const spinner = ora('Starting bot').start();
-
+        this.log('Starting Vixen');
         const vixenData = this.db.collection('botvars');
-        this.config.token = (await vixenData.findOne({
-            name: 'token'
-        }, )).value;
-        this.config.owner = (await vixenData.findOne({
-            name: 'owner'
-        })).value;
-
+        const token = (await vixenData.findOne({name: 'token'}));
+        const owner = (await vixenData.findOne({name: 'owner'}));
+        if (!token) {
+            this.log(`Discord token has not been set! Please run ${chalk.green('yarn setup')} from the Vixen root directory!`, 'error');
+            return process.exit(1);
+        }
+        if (!owner || !owner.value || owner.value === '') this.log('Bot owner ID not set!', 'warn');
+        this.config.token = token.value;
+        this.config.owner = owner ? owner.value : '';
         this.bot = new Discord.Client();
 
         // Register commands
@@ -102,13 +104,14 @@ class Vixen {
         });
 
         this.bot.once('ready', async () => {
+            const WebUI = require('./webui');
+            this.webui = new WebUI(this);
             this.audioController = new AudioController(this);
-            spinner.stop();
-            this.log('Logged in', 'info');
+            this.log('Logged into Discord', 'info');
             this.bot.guilds.cache.forEach(async (guild) => {
                 fs.ensureDirSync(`./data/${guild.id}`);
                 const guilds = this.db.collection('guilds');
-                guilds.updateOne({
+                await guilds.updateOne({
                     id: guild.id
                 }, {
                     $set: {
@@ -118,13 +121,11 @@ class Vixen {
                 }, {
                     upsert: true
                 });
-                const emojis = new Map(Object.entries((await guilds.findOne({
+                const guildData = await guilds.findOne({
                     id: guild.id
-                })).emojis));
-                let emoji = undefined;
-                if (emojis) {
-                    emoji = emojis.get('loading');
-                }
+                });
+                const emojis = guildData.emojis ? new Map(Object.entries(guildData.emojis)) : new Map();
+                let emoji = emojis.get('loading');
                 if (!emoji) {
                     this.log(`Loading emoji is incorrect or does not exist on guild ${guild.id}. Creating it...`, 'warn');
                     let newEmoji = await guild.emojis.create(path.join(this.rootDir, 'assets/loading.gif'), 'vixenload');
@@ -142,6 +143,7 @@ class Vixen {
                     });
                 }
             });
+            this.log('Vixen startup complete');
         });
 
         this.bot.on('channelCreate', async channel => {
@@ -217,10 +219,17 @@ class Vixen {
         // Graceful exit
         const death = require('death');
         death(async () => {
-            const destroySpinner = ora('Shutting down gracefully...').start();
+            console.log('');
+            this.log('Shutting down Vixen...');
+            await this.mongoClient.close();
+            this.log('Closed DB connection');
+            await this.webui.stop();
+            this.log('Stopped OAuth Provider');
             await this.bot.destroy();
+            this.log('Disconnected from Discord');
             await this.later(1500);
-            destroySpinner.stop();
+            this.log('Vixen has been shut down');
+            console.log('');
             process.exit(0);
         });
 
