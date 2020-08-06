@@ -1,9 +1,7 @@
 const DiscordStrat = require('passport-discord').Strategy;
 const passport = require('passport');
-const renderer = require('vue-server-renderer').createRenderer();
 const server = require('express')();
 const session = require('express-session');
-const Vue = require('vue');
 
 const scopes = ['identify', 'guilds'];
 const prompt = 'consent';
@@ -17,7 +15,7 @@ class WebUI {
     }
 
     async stop() {
-        await this.main.close();
+        this.main.close();
     }
 
     async run() {
@@ -55,29 +53,42 @@ class WebUI {
 
         server.use(passport.initialize());
         server.use(passport.session());
-        server.get('/', passport.authenticate('discord', {scope: scopes, prompt: prompt }), function() {});
+        server.get('/oauth', passport.authenticate('discord', {scope: scopes, prompt: prompt }), function() {});
         server.get('/callback',
-            passport.authenticate('discord', { failureRedirect: '/' }), function (req, res) { res.redirect('/admin'); }
+            passport.authenticate('discord', { failureRedirect: '/' }), function (req, res) { res.redirect('/'); }
         );
-        server.get('/admin', checkAuth, function(req, res) {
-            const userinfo = req.user;
-            const app = new Vue({
-                data: {
-                    tag: `${userinfo.username}#${userinfo.discriminator}`
-                },
-                template: `<div>You are {{ tag }}</div>`
-            });
 
-            renderer.renderToString(app, (err, html) => {
-                if (err) return res.status(500).end('Internal Server Error');
-                res.end(`
-                    <!DOCTYPE html>
-                    <html lang="en">
-                        <head><title>Vixen Web UI</title></head>
-                        <body>${html}</body>
-                    </html>
-                `);
-            });
+        // server.get('/admin', checkAuth, function(req, res) {
+        //     const userinfo = req.user;
+        //     const app = new Vue({
+        //         data: {
+        //             tag: `${userinfo.username}#${userinfo.discriminator}`
+        //         },
+        //         template: `<div>You are {{ tag }}</div>`
+        //     });
+
+
+        //     renderer.renderToString(app, (err, html) => {
+        //         if (err) return res.status(500).end('Internal Server Error');
+        //         res.end(`
+        //             <!DOCTYPE html>
+        //             <html lang="en">
+        //                 <head><title>Vixen Web UI</title></head>
+        //                 <body>${html}</body>inspire
+        //             </html>
+        //         `);
+        //     });
+        // });
+
+        server.get('/api/guilds/:id', checkAuth, async (req, res) => {
+            const vixenGuilds = this.vixen.db.collection('guilds');
+            const persistentInfo = await vixenGuilds.findOne({id: req.params.id});
+            const liveInfo = this.vixen.guildsData.get(req.params.id);
+            const guildInfo = {
+                persistent: persistentInfo,
+                live: liveInfo
+            };
+            res.send(guildInfo);
         });
 
         this.main = server.listen(3000, (err) => {

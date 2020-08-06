@@ -5,8 +5,6 @@ const fs = require('fs-extra');
 const ora = require('ora');
 const youtubedl = require('youtube-dl');
 
-const guildsMap = new Map();
-
 const config = {
     maxDuration: 900,
     defaultVolume: 0.35
@@ -15,6 +13,8 @@ const config = {
 class AudioController {
     constructor(vixen) {
         this.vixen = vixen;
+        this.guildsMap = vixen.guildsData;
+        this.audioPlayers = new Map();
         this._cleanGuildData();
     }
 
@@ -24,36 +24,41 @@ class AudioController {
             loop: false,
             nowPlaying: undefined,
             startTime: undefined,
-            audioPlayer: undefined
         };
         if (guild === undefined) {
             this.vixen.bot.guilds.cache.forEach(guild => {
-                guildsMap.set(guild.id, cleanData);
+                this.guildsMap.set(guild.id, cleanData);
+                this.audioPlayers.set(guild.id, undefined);
             });
         } else {
-            guildsMap.set(guild.id, cleanData);
+            this.guildsMap.set(guild.id, cleanData);
+            this.audioPlayers.set(guild.id, undefined);
         }
     }
 
     async getSettings(guildId) {
         const query = await this.vixen.db.collection('guilds').findOne({id: guildId});
-        let guildAudioSettings;
-        console.log(query);
-        if (query.audio) {
-            guildAudioSettings = new Map(Object.entries(query.audio));
-        }
-        guildAudioSettings = new Map();
+        const guildAudioSettings = query.audio ? new Map(Object.entries(query.audio)) : new Map();
         let settings = {};
         settings.volume = guildAudioSettings.get('volume') ? guildAudioSettings.get('volume') : config.defaultVolume;
         return settings;
     }
 
     getQueueDuration(guildId) {
-        return getQueueDuration(guildId);
+        const guildData = this.guildsMap.get(guildId);
+        const queueTil = guildData.playQueue.slice();
+        queueTil.pop();
+        const now = Date.now();
+        const elapsed = now - guildData.startTime;
+        let totalDuration = guildData.nowPlaying.duration * 1000 - elapsed;
+        queueTil.forEach(video => {
+            totalDuration += video.duration * 1000;
+        });
+        return totalDuration;
     }
 
     getTimeTilNext(guildId) {
-        const guildData = guildsMap.get(guildId);
+        const guildData = this.guildsMap.get(guildId);
         const now = Date.now();
         const elapsed = now - guildData.startTime;
         return guildData.nowPlaying.duration * 1000 - elapsed;
@@ -64,20 +69,20 @@ class AudioController {
     }
 
     getQueue(guildId) {
-        return guildsMap.get(guildId).playQueue;
+        return this.guildsMap.get(guildId).playQueue;
     }
 
     async setVolume(guildId, level) {
-        const guildData = guildsMap.get(guildId);
-        guildData.audioPlayer.setVolume(level);
+        const audioPlayer = this.audioPlayers.get(guildId);
+        audioPlayer.setVolume(level);
         this.vixen.db.collection('guilds').updateOne({id: guildId}, {$set: {'audio.volume': level}}, {upsert: true});
     }
 
     queue(guildId, audioJSON) {
-        guildsMap.get(guildId).playQueue.push(audioJSON);
+        this.guildsMap.get(guildId).playQueue.push(audioJSON);
     }
 
-    async checkQueue(guildMsg, queue = guildsMap.get(guildMsg.guild.id).playQueue.slice()) {
+    async checkQueue(guildMsg, queue = this.guildsMap.get(guildMsg.guild.id).playQueue.slice()) {
         const message = await guildMsg.channel.send('Downloading missing tracks... 0/' + queue.length);
         let position = 0;
         for (const data of queue) {
@@ -107,25 +112,27 @@ class AudioController {
     }
 
     async play(guildId, audioJSON) {
-        const guildData = guildsMap.get(guildId);
+        const guildData = this.guildsMap.get(guildId);
+        let audioPlayer = this.audioPlayers.get(guildId);
         if (guildData.nowPlaying) {
             if (guildData.loop) {
                 await audioJSON.channel.send('Warning: Loop is enabled for the currently playing video.');
                 await this.vixen.later(2000);
             }
             this.queue(guildId, audioJSON);
-            sendQueueEmbed(audioJSON);
+            this.sendQueueEmbed(audioJSON, this.getQueueDuration);
         } else {
             if (audioJSON.vc) {
                 const options = await this.getSettings(guildId);
                 const connection = await audioJSON.vc.join();
                 connection.voice.setSelfDeaf(true);
-                guildData.audioPlayer = audioJSON.source === 'File' ? connection.play(require('path').join(this.vixen.rootDir, 'cache', audioJSON.filename), options) : connection.play(require('path').join(this.vixen.rootDir, 'cache', audioJSON.id + '.ogg'), options);
+                audioPlayer = audioJSON.source === 'File' ? connection.play(require('path').join(this.vixen.rootDir, 'cache', audioJSON.filename), options) : connection.play(require('path').join(this.vixen.rootDir, 'cache', audioJSON.id + '.ogg'), options);
+                this.audioPlayers.set(guildId, audioPlayer);
                 guildData.nowPlaying = audioJSON;
                 guildData.startTime = Date.now();
-                sendNPEmbed(audioJSON);
+                this.sendNPEmbed(audioJSON);
                 guildData.audioPlaying = true;
-                guildData.audioPlayer.on('finish', async () => {
+                audioPlayer.on('finish', async () => {
                     guildData.previousSong = guildData.nowPlaying;
                     guildData.nowPlaying = undefined;
                     guildData.startTime = undefined;
@@ -148,25 +155,26 @@ class AudioController {
     }
 
     skip(guildId) {
-        guildsMap.get(guildId).audioPlayer.end();
+        this.audioPlayers.get(guildId).end();
     }
 
     stop(guildId) {
-        const guildData = guildsMap.get(guildId);
+        const guildData = this.guildsMap.get(guildId);
+        const audioPlayer = this.audioPlayers.get(guildId);
         guildData.loop = false;
         guildData.playQueue = [];
-        guildData.audioPlayer.end();
+        audioPlayer.end();
         this._cleanGuildData(guildId);
     }
 
     pause(guildId) {
-        const guildData = guildsMap.get(guildId);
-        guildData.audioPlayer.paused ? guildData.audioPlayer.resume() : guildData.audioPlayer.pause();
-        return guildData.audioPlayer.paused;
+        const audioPlayer = this.audioPlayers.get(guildId);
+        audioPlayer.paused ? audioPlayer.resume() : audioPlayer.pause();
+        return audioPlayer.paused;
     }
 
     toggleLoop(guildId) {
-        const guildData = guildsMap.get(guildId);
+        const guildData = this.guildsMap.get(guildId);
         guildData.loop = !guildData.loop;
         return guildData.loop;
     }
@@ -213,48 +221,35 @@ class AudioController {
             });
         });
     }
-}
 
-function getQueueDuration(guildId) {
-    const guildData = guildsMap.get(guildId);
-    const queueTil = guildData.playQueue.slice();
-    queueTil.pop();
-    const now = Date.now();
-    const elapsed = now - guildData.startTime;
-    let totalDuration = guildData.nowPlaying.duration * 1000 - elapsed;
-    queueTil.forEach(video => {
-        totalDuration += video.duration * 1000;
-    });
-    return totalDuration;
-}
-
-function sendNPEmbed(data) {
-    const embed = new Discord.MessageEmbed();
-    embed.setColor('#ff0000');
-    data.source === 'youtube' ? embed.setTitle('YouTube') : embed.setTitle(data.source);
-    embed.setDescription(`Playing video requested by ${data.requester.displayName}`);
-    embed.setThumbnail(data.requester.user.avatarURL());
-    embed.addField('Video', data.title);
-    embed.addField('Uploader', data.uploader, true);
-    embed.addField('Duration', formatDuration(data.duration * 1000), true);
-    embed.setImage(data.thumbnail);
-    embed.setURL(data.url);
-    data.channel.send(embed);
-
-}
-
-function sendQueueEmbed(data) {
-    const embed = new Discord.MessageEmbed();
-    embed.setColor('#ff0000');
-    data.source === 'youtube' ? embed.setTitle('YouTube') : embed.setTitle(data.source);
-    embed.setDescription(`${data.requester.displayName} added a video to the queue`);
-    embed.setThumbnail(data.thumbnail);
-    embed.addField('Video', data.title);
-    embed.addField('Uploader', data.uploader, true);
-    embed.addField('Duration', formatDuration(data.duration * 1000), true);
-    embed.addField('ETA', `${formatDuration(getQueueDuration(data.requester.guild.id))}`, true);
-    embed.setURL(data.url);
-    data.channel.send(embed);
+    sendNPEmbed(data) {
+        const embed = new Discord.MessageEmbed();
+        embed.setColor('#ff0000');
+        data.source === 'youtube' ? embed.setTitle('YouTube') : embed.setTitle(data.source);
+        embed.setDescription(`Playing video requested by ${data.requester.displayName}`);
+        embed.setThumbnail(data.requester.user.avatarURL());
+        embed.addField('Video', data.title);
+        embed.addField('Uploader', data.uploader, true);
+        embed.addField('Duration', formatDuration(data.duration * 1000), true);
+        embed.setImage(data.thumbnail);
+        embed.setURL(data.url);
+        data.channel.send(embed);
+    
+    }
+    
+    sendQueueEmbed(data) {
+        const embed = new Discord.MessageEmbed();
+        embed.setColor('#ff0000');
+        data.source === 'youtube' ? embed.setTitle('YouTube') : embed.setTitle(data.source);
+        embed.setDescription(`${data.requester.displayName} added a video to the queue`);
+        embed.setThumbnail(data.thumbnail);
+        embed.addField('Video', data.title);
+        embed.addField('Uploader', data.uploader, true);
+        embed.addField('Duration', formatDuration(data.duration * 1000), true);
+        embed.addField('ETA', `${formatDuration(this.getQueueDuration(data.requester.guild.id))}`, true);
+        embed.setURL(data.url);
+        data.channel.send(embed);
+    }
 }
 
 module.exports = AudioController;

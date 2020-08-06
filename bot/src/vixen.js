@@ -33,6 +33,7 @@ class Vixen {
             prefix: '/',
             owner: ''
         };
+        this.guildsData = new Map();
         this.start();
     }
     

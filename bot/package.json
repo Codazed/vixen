@@ -34,8 +34,6 @@
     "smite-builder": "^1.1.0",
     "table": "^5.4.6",
     "utf-8-validate": "^5.0.2",
-    "vue": "^2.6.11",
-    "vue-server-renderer": "^2.6.11",
     "youtube-dl": "^3.0.2",
     "youtube-regex": "^1.0.5",
     "zlib-sync": "^0.1.7"

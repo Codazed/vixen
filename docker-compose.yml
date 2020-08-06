@@ -9,6 +9,8 @@ services:
 
   bot:
     image: node:erbium
+    ports:
+      - 3000:3000
     volumes:
       - ./bot:/vixen
       - ./.docker/bot/node_modules:/vixen/node_modules
