@@ -10,7 +10,7 @@ services:
   bot:
     image: node:erbium
     ports:
-      - 3000:3000
+      - 6000:6000
     volumes:
       - ./bot:/vixen
       - ./.docker/bot/node_modules:/vixen/node_modules
@@ -27,9 +27,11 @@ services:
     ports:
       - 9090:80
     volumes:
-      - ./webui/dist:/var/www/html
+      - ./webui/dist:/usr/share/nginx/html
+      - ./nginx-conf:/etc/nginx/conf.d
     networks:
       - frontend
+    depends_on: [bot, db]
 
 networks:
   frontend:
