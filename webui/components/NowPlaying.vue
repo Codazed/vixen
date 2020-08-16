@@ -4,9 +4,8 @@
           <v-col :cols="8">
             <v-img class="mb-6" :src="data.thumbnail"></v-img>
             <v-progress-linear
-              color="red"
+              :color="`rgb(${data.colorData.dominant[0]}, ${data.colorData.dominant[1]}, ${data.colorData.dominant[2]})`"
               rounded
-              striped
               height="12"
               :value="((now - data.startTime)/(data.duration*1000))*100">
             </v-progress-linear>
@@ -29,7 +28,6 @@
 
 <script>
 import * as format from 'format-duration';
-// import FastAverageColor from 'fast-average-color';
 export default {
   props: ['data'],
   data: function() {
@@ -37,6 +35,7 @@ export default {
       now: Date.now(),
       elapsedTime: '0:00',
       totalTime: '0:00',
+      barColor: 'blue',
     };
   },
   mounted() {

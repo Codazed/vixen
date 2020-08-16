@@ -1,3 +1,4 @@
+/* eslint-disable require-jsdoc */
 const fs = require('fs-extra');
 const MongoDB = require('mongodb');
 
@@ -9,9 +10,9 @@ fs.ensureDirSync('./data');
 start();
 
 async function start() {
-    await client.connect();
-    const Vixen = require('./src/vixen');
-    //return new WebUI(new Vixen(client.db('vixen')));
-    // return new Vixen(client.db('vixen'), __dirname);
-    new Vixen(client, __dirname);
+  await client.connect();
+  const Vixen = require('./src/vixen');
+  // return new WebUI(new Vixen(client.db('vixen')));
+  // return new Vixen(client.db('vixen'), __dirname);
+  new Vixen(client, __dirname);
 }

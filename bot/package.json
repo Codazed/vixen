@@ -9,6 +9,7 @@
     "@discordjs/opus": "^0.3.2",
     "bufferutil": "^4.0.1",
     "chalk": "^4.1.0",
+    "colorthief": "^2.3.2",
     "death": "^1.1.0",
     "discord.js": "^12.2.0",
     "download": "^8.0.0",
@@ -35,6 +36,7 @@
     "socket.io": "^2.3.0",
     "table": "^5.4.6",
     "utf-8-validate": "^5.0.2",
+    "webp-converter": "^2.3.0",
     "youtube-dl": "^3.0.2",
     "youtube-regex": "^1.0.5",
     "zlib-sync": "^0.1.7"

@@ -6,7 +6,7 @@
           <div v-if="authed">
             <v-list-item class="px-2">
               <v-list-item-avatar>
-                    <v-img src="https://via.placeholder.com/32"></v-img>
+                    <v-img v-if="guildData" :src="guildData.icon"></v-img>
                   </v-list-item-avatar>
                   <v-list-item-content>
                     <v-menu offset-y>
@@ -19,7 +19,7 @@
                         <v-list-item
                           v-for="guild in managedGuilds.filter(guild => guild.id !== selectedGuild.id)"
                           :key="guild.name"
-                          @click="() => {
+                          @click="function() {
                             selectedGuild = guild;
                             apiReload();
                           }">
@@ -80,7 +80,7 @@
                 Logout
               </v-btn>
               <v-btn v-else href="/oauth" block>Login to Discord</v-btn>
-          <div>
+          </div>
         </template>
       </v-navigation-drawer>
       <v-main>
@@ -88,8 +88,10 @@
           <div v-if="npData.title">
             <h1>Now Playing</h1>
             <NowPlaying :data="npData" />
-            <h1>Audio Queue</h1>
-            <SongQueue :queue-data="playQueue" />
+            <div v-if="playQueue.length > 0">
+              <h1>Audio Queue</h1>
+              <SongQueue :queue-data="playQueue" />
+            </div>
           </div>
           <div v-else>Nothing is currently playing</div>
         </div>
@@ -104,61 +106,61 @@ import * as axios from 'axios';
 import * as format from 'format-duration';
 import io from 'socket.io-client';
 export default {
-  data: function() {
-    return {
-      authed: false,
-      userData: undefined,
-      managedGuilds: undefined,
-      selectedGuild: {},
-      guildData: undefined,
-      npData: {},
-      playQueue: [],
-      status: undefined,
-    };
-  },
-  methods: {
-    async apiReload() {
-      this.status = (await axios.get('/api/status')).data;
-      const status = this.status;
-      const guildId = this.selectedGuild.id;
-      this.guildData = (await axios.get('/api/guilds/' + guildId)).data;
-      this.playQueue = [];
-      this.guildData.live.playQueue.forEach((song, index) => {
-        this.playQueue.push({
-          pos: index,
-          name: song.title,
-          dur: format(song.duration * 1000),
-          requester: song.requester.displayName,
-          eta: 'TODO: Implement',
-        });
-      });
-      this.authed = status.authed;
-      this.userData = status.userData;
-      this.managedGuilds = status.managedGuilds;
-      if (this.guildData.live.nowPlaying) {
-        this.npData = this.guildData.live.nowPlaying;
-        this.npData.startTime = this.guildData.live.startTime;
-        this.npData.totalTime = format(this.guildData.live.nowPlaying.duration * 1000);
-      } else {
-        this.npData = {};
-      }
+    data: function() {
+        return {
+            authed: false,
+            userData: undefined,
+            managedGuilds: undefined,
+            selectedGuild: {},
+            guildData: undefined,
+            npData: {},
+            playQueue: [],
+            status: undefined,
+        };
     },
-  },
-  async mounted() {
-    const response = await axios.get('/api/status');
-    this.authed = response.data.authed;
-    this.userData = response.data.userData;
-    this.managedGuilds = response.data.managedGuilds;
-    const socket = io();
-    socket.on('connect', () => {
-      console.log('Socket connected!');
-    });
-    socket.on('update', (changed) => {
-      if (this.selectedGuild.id === changed.guild) {
-        this.apiReload();
-      }
-    });
-  },
+    methods: {
+        async apiReload() {
+            this.status = (await axios.get('/api/status')).data;
+            const status = this.status;
+            const guildId = this.selectedGuild.id;
+            this.guildData = (await axios.get('/api/guilds/' + guildId)).data;
+            this.playQueue = [];
+            this.guildData.live.playQueue.forEach((song, index) => {
+                this.playQueue.push({
+                    pos: index,
+                    name: song.title,
+                    dur: format(song.duration * 1000),
+                    requester: song.requester.displayName,
+                    eta: 'TODO: Implement',
+                });
+            });
+            this.authed = status.authed;
+            this.userData = status.userData;
+            this.managedGuilds = status.managedGuilds;
+            if (this.guildData.live.nowPlaying) {
+                this.npData = this.guildData.live.nowPlaying;
+                this.npData.startTime = this.guildData.live.startTime;
+                this.npData.totalTime = format(this.guildData.live.nowPlaying.duration * 1000);
+            } else {
+                this.npData = {};
+            }
+        },
+    },
+    async mounted() {
+        const response = await axios.get('/api/status');
+        this.authed = response.data.authed;
+        this.userData = response.data.userData;
+        this.managedGuilds = response.data.managedGuilds;
+        const socket = io();
+        socket.on('connect', () => {
+            console.log('Socket connected!');
+        });
+        socket.on('update', (changed) => {
+            if (this.selectedGuild.id === changed.guild) {
+                this.apiReload();
+            }
+        });
+    },
 };
 
 </script>

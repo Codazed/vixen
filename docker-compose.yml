@@ -22,17 +22,6 @@ services:
     depends_on: [db]
     tty: true
 
-  webui:
-    image: nginx:latest
-    ports:
-      - 9090:80
-    volumes:
-      - ./webui/dist:/usr/share/nginx/html
-      - ./nginx-conf:/etc/nginx/conf.d
-    networks:
-      - frontend
-    depends_on: [bot, db]
-
 networks:
   frontend:
   backend:
